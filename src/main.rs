@@ -1,15 +1,15 @@
 use std::fs;
-use std::io;
 use std::io::prelude::*;
+use std::io;
 use std::os::unix::fs::PermissionsExt;
 use std::path::Path;
 use std::process::Command;
-use std::sync::mpsc::channel;
-use std::thread;
 
 use clap::{App, Arg};
 use console::Style;
 use dialoguer::{theme::ColorfulTheme, Select};
+use futures::executor::{block_on, block_on_stream};
+use futures::stream;
 
 const NIX_BUILD_FHS: &'static str = "nix-build --no-out-link -E";
 const LDD_NOT_FOUND: &'static str = " => not found";
@@ -70,7 +70,7 @@ fn missing_libs(binary: &Path) -> Vec<String> {
 
 /// uses nix-locate to find candidate packages providing a given file,
 /// identified by a file name
-fn find_candidates(file_name: &String) -> Vec<(String, String)> {
+async fn find_candidates(file_name: &String) -> Vec<(String, String)> {
     let output = Command::new("nix-locate")
         .arg("--top-level")
         .arg("--type=r")
@@ -148,39 +148,31 @@ fn main() {
     missing_libs.dedup();
     missing_libs.sort();
 
-    // using two thread producer/consumer architecture. This reduces waiting
-    // time by a lot, as nix-locate calls are really time expensive
-    let (sender, receiver) = channel();
-    thread::spawn(move || {
-        for lib in missing_libs {
-            let candidates = find_candidates(&lib);
-            sender.send((lib, candidates)).unwrap();
-        }
-    });
+    let candidates_stream = stream::iter(missing_libs.iter().map(find_candidates));
 
-    loop {
-        if let Ok((lib, candidates)) = receiver.recv() {
-            match candidates.len() {
-                0 => panic!("Found no provide for {}", lib),
-                1 => packages.push(candidates[0].0.clone()),
-                _ if candidates.iter().any(|c| packages.contains(&c.0)) => {}
-                _ => {
-                    let bold = Style::new().bold().red();
-                    let selections: Vec<String> = candidates
-                        .iter()
-                        .map(|c| format!("{} {}", c.0, c.1))
-                        .collect();
-                    let choice = Select::with_theme(&ColorfulTheme::default())
-                        .with_prompt(&format!("Pick provider for {}", bold.apply_to(lib)))
-                        .default(0)
-                        .items(&selections[..])
-                        .interact()
-                        .unwrap();
-                    packages.push(candidates[choice].0.clone());
-                }
+    for (i, candidates) in block_on_stream(candidates_stream)
+        .map(|f| block_on(f))
+        .enumerate()
+    {
+        let lib = &missing_libs[i];
+        match candidates.len() {
+            0 => panic!("Found no provide for {}", lib),
+            1 => packages.push(candidates[0].0.clone()),
+            _ if candidates.iter().any(|c| packages.contains(&c.0)) => {}
+            _ => {
+                let bold = Style::new().bold().red();
+                let selections: Vec<String> = candidates
+                    .iter()
+                    .map(|c| format!("{} {}", c.0, c.1))
+                    .collect();
+                let choice = Select::with_theme(&ColorfulTheme::default())
+                    .with_prompt(&format!("Pick provider for {}", bold.apply_to(lib)))
+                    .default(0)
+                    .items(&selections[..])
+                    .interact()
+                    .unwrap();
+                packages.push(candidates[choice].0.clone());
             }
-        } else {
-            break;
         }
     }
 
