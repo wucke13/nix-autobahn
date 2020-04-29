@@ -15,4 +15,4 @@ license = "MIT"
 [dependencies]
 clap = "2"
 console = "0.10"
-dialoguer = "0.5"
+dialoguer = "0.6"
