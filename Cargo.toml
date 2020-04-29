@@ -14,8 +14,8 @@ license = "MIT"
 
 [dependencies]
 clap = "2"
-console = "0.10"
-dialoguer = "0.5"
+console = "0"
+dialoguer = "0"
 futures = "0.3"
+smol = "0.1"
 #nix-index = { git = "https://github.com/bennofs/nix-index" }
-
