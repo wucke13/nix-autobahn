@@ -1,0 +1,40 @@
+language: rust
+before_script:
+  - rm -r .cargo
+script:
+  - cargo build --verbose --all
+  - cargo test --verbose --all
+cache: cargo
+sudo: required
+
+rust:
+  - stable
+  - beta
+  - nightly
+
+matrix:
+  allow_failures:
+    - rust: nightly
+arch:
+  - amd64
+  - arm64
+os:
+  - linux
+  - osx
+
+addons:
+  apt:
+    packages:
+      - libudev-dev
+deploy:
+  provider: releases
+  api_key:
+    secure: HikfcBnNn7khIGGu2FrWqDt2YWAUM9+uNI3Mk3wWrXMF/717DKnLZFJ4ApLyp+nrPq9fNSf9s7VfvLT0ALugwzXEc8h1CI5Qo9+N6vYChvhUhWCZ16wIGeRXfyELsvVVMCz57o0u2HwPy1QTLA9PCbaYVkptH3qYQLpupRLSkrzqrbvCpl0aUaKoAzIB6it5Brm3YOpGjWs+BxH73bb1sDDLjY4jzYZj4KNHFdCjLjf0R396uquoIkvAVVpG9YrbzXOvRkl6Z/pMjjmCUtwdVxbB4rw+gbVoG81yTU8w/MmW9kK6TYLFqWSMg0t6RfFloVkGHA7V2m0d+uy9Az6O1/yUCVwu8yV66CuZCvFECFivsKMWlQFuPUJY1V13Mt5oiTgD9YaHuJgcTxqhEnQET5+kMFWvYgJrwazFDH6lt+XaIYCYfqAJSVse28sxBVuGgIuBckm+DeO4hB1FpgPNy5zYphutpkYe4INBJXRidp7LiWXHzVL8k4MvWHpacXIq4r1rCHtdjfz3v9j5bvrkNkNdFAsv27Z4gdq9O7VP7w0PDD9b02AK18tRjLkW19Vha2ryRn3lDYJivxuZNLe6BajvMpOtew5VVW4UjCgbgxzagGyoAiQirPYC6+dSkT+SAo52jHcfF+ClLCGMOyzVqZ+LJumem801SVT1xUK/2AE=
+  file_glob: true
+  file: $CRATE_NAME-$TRAVIS_TAG-$TARGET.*
+  skip_cleanup: true
+  on:
+    condition: $TRAVIS_RUST_VERSION = stable
+    tags: true
+
+# ex: set tabstop=2 sts=2 sw=2 expandtab

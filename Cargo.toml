@@ -17,3 +17,5 @@ clap = "2"
 console = "0.10"
 dialoguer = "0.5"
 futures = "0.3"
+#nix-index = { git = "https://github.com/bennofs/nix-index" }
+

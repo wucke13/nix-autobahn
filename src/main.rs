@@ -1,6 +1,6 @@
 use std::fs;
-use std::io::prelude::*;
 use std::io;
+use std::io::prelude::*;
 use std::os::unix::fs::PermissionsExt;
 use std::path::Path;
 use std::process::Command;
@@ -54,7 +54,7 @@ fn missing_libs(binary: &Path) -> Vec<String> {
     }
 
     String::from_utf8(output.stdout)
-        .unwrap()
+        .expect("unable to parse utf8")
         .lines()
         .filter_map(|l| match l.find(LDD_NOT_FOUND) {
             Some(i) => {
@@ -86,7 +86,7 @@ async fn find_candidates(file_name: &String) -> Vec<(String, String)> {
     }
 
     String::from_utf8(output.stdout)
-        .unwrap()
+        .expect("unable to parse utf8")
         .lines()
         .map(|l| {
             let begin_cut = l.find(" ").unwrap();
