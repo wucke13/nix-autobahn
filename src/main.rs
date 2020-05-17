@@ -1,11 +1,10 @@
 use std::fs;
-use std::io;
-use std::io::prelude::*;
+use std::io::{self, prelude::*};
 use std::os::unix::fs::PermissionsExt;
-use std::path::Path;
+use std::path::{Path, PathBuf};
 use std::process::Command;
 
-use clap::{App, Arg};
+use clap::Clap;
 use console::Style;
 use dialoguer::{theme::ColorfulTheme, Select};
 use futures::prelude::*;
@@ -96,60 +95,37 @@ fn find_candidates(file_name: &String) -> Vec<(String, String)> {
         .collect()
 }
 
-fn main() {
-    let matches = App::new(env!("CARGO_PKG_NAME"))
-        .version(env!("CARGO_PKG_VERSION"))
-        .author(env!("CARGO_PKG_AUTHORS"))
-        .about(env!("CARGO_PKG_DESCRIPTION"))
-        .arg(
-            Arg::with_name("binary")
-                .value_name("BINARY")
-                .required(true)
-                .about("dynamically linked binary to be examined"),
-        )
-        .arg(
-            Arg::with_name("libs")
-                .short('l')
-                .long("additional-libs")
-                .takes_value(true)
-                .multiple(true)
-                .about("Additional libraries to search for and propagate"),
-        )
-        .arg(
-            Arg::with_name("packages")
-                .short('p')
-                .long("additional-pkgs")
-                .takes_value(true)
-                .multiple(true)
-                .about("Additional packages to propagate"),
-        )
-        .get_matches();
+#[derive(Clap)]
+#[clap(version, author, about)]
+struct Opts {
+    /// dynamically linked binary to be examined
+    #[clap()]
+    binary: PathBuf,
 
-    // the binary to be processed
-    let path_to_binary = Path::new(matches.value_of("binary").unwrap());
+    /// additional shared object files to search for and propagate
+    #[clap(short = "l", long = "lib")]
+    libs: Vec<String>,
+
+    /// additional packages to propagate
+    #[clap(short = "p", long = "pkgs")]
+    pkgs: Vec<String>,
+}
+
+fn main() {
+    let mut opts: Opts = Opts::parse();
 
     // initilizes packages list and adds additional-packages right away, if
     // provided
-    let mut packages: Vec<String> = Vec::new();
-    if let Some(additional_packages) = matches.values_of("packages") {
-        for p in additional_packages {
-            packages.push(p.to_string());
-        }
-    }
-    packages.dedup();
-    packages.sort();
 
-    let mut missing_libs = missing_libs(&path_to_binary);
-    if let Some(additional_libs) = matches.values_of("libs") {
-        for p in additional_libs {
-            missing_libs.push(p.to_string());
-        }
-    }
-    missing_libs.dedup();
-    missing_libs.sort();
+    opts.pkgs.dedup();
+    opts.pkgs.sort();
+
+    opts.libs.dedup();
+    opts.libs.sort();
 
     smol::run(async {
-        let candidates_stream = missing_libs
+        let candidates_stream = opts
+            .libs
             .clone()
             .into_iter()
             .map(|string| find_candidates(&string))
@@ -157,11 +133,11 @@ fn main() {
         let mut candidates_stream = smol::iter(blocking!(candidates_stream));
 
         while let Some((i, candidates)) = candidates_stream.next().await {
-            let lib = &missing_libs[i];
+            let lib = &opts.libs[i];
             match candidates.len() {
                 0 => panic!("Found no provide for {}", lib),
-                1 => packages.push(candidates[0].0.clone()),
-                _ if candidates.iter().any(|c| packages.contains(&c.0)) => {}
+                1 => opts.pkgs.push(candidates[0].0.clone()),
+                _ if candidates.iter().any(|c| opts.pkgs.contains(&c.0)) => {}
                 _ => {
                     let bold = Style::new().bold().red();
                     let selections: Vec<String> = candidates
@@ -174,16 +150,16 @@ fn main() {
                         .items(&selections[..])
                         .interact()
                         .unwrap();
-                    packages.push(candidates[choice].0.clone());
+                    opts.pkgs.push(candidates[choice].0.clone());
                 }
             }
         }
 
         // build FHS expression
-        let fhs_expression = fhs_shell(&path_to_binary.canonicalize().unwrap(), packages);
+        let fhs_expression = fhs_shell(&opts.binary.canonicalize().unwrap(), opts.pkgs);
         // write bash script with the FHS expression
         write_bash_script(
-            &path_to_binary.with_file_name("run-with-nix"),
+            &opts.binary.with_file_name("run-with-nix"),
             &format!("$({} '{}')/bin/fhs", NIX_BUILD_FHS, fhs_expression),
         )
         .unwrap();
