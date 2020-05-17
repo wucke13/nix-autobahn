@@ -11,7 +11,6 @@ use dialoguer::{theme::ColorfulTheme, Select};
 use futures::prelude::*;
 use smol::blocking;
 
-
 const NIX_BUILD_FHS: &'static str = "nix-build --no-out-link -E";
 const LDD_NOT_FOUND: &'static str = " => not found";
 
@@ -38,9 +37,9 @@ fn fhs_shell(run: &Path, packages: Vec<String>) -> String {
     ];
     runScript = "{}";
   }}"#,
-  packages.join("\n      "),
-  run.to_str().expect("unable to stringify path")
-  )
+        packages.join("\n      "),
+        run.to_str().expect("unable to stringify path")
+    )
 }
 
 /// uses ldd to find missing shared object files on a given binary
@@ -66,7 +65,7 @@ fn missing_libs(binary: &Path) -> Vec<String> {
             }
             None => None,
         })
-    .collect()
+        .collect()
 }
 
 /// uses nix-locate to find candidate packages providing a given file,
@@ -94,7 +93,7 @@ fn find_candidates(file_name: &String) -> Vec<(String, String)> {
             let end_cut = l.match_indices("/").skip(3).nth(0).unwrap().0;
             (l[0..begin_cut].to_string(), l[end_cut..].to_string())
         })
-    .collect()
+        .collect()
 }
 
 fn main() {
@@ -104,26 +103,26 @@ fn main() {
         .about(env!("CARGO_PKG_DESCRIPTION"))
         .arg(
             Arg::with_name("binary")
-            .value_name("BINARY")
-            .required(true)
-            .help("dynamically linked binary to be examined"),
-            )
+                .value_name("BINARY")
+                .required(true)
+                .about("dynamically linked binary to be examined"),
+        )
         .arg(
             Arg::with_name("libs")
-            .short("l")
-            .long("additional-libs")
-            .takes_value(true)
-            .multiple(true)
-            .help("Additional libraries to search for and propagate"),
-            )
+                .short('l')
+                .long("additional-libs")
+                .takes_value(true)
+                .multiple(true)
+                .about("Additional libraries to search for and propagate"),
+        )
         .arg(
             Arg::with_name("packages")
-            .short("p")
-            .long("additional-pkgs")
-            .takes_value(true)
-            .multiple(true)
-            .help("Additional packages to propagate"),
-            )
+                .short('p')
+                .long("additional-pkgs")
+                .takes_value(true)
+                .multiple(true)
+                .about("Additional packages to propagate"),
+        )
         .get_matches();
 
     // the binary to be processed
@@ -150,11 +149,14 @@ fn main() {
     missing_libs.sort();
 
     smol::run(async {
-        let candidates_stream = missing_libs.clone().into_iter().map(|string| find_candidates(&string)).enumerate();
+        let candidates_stream = missing_libs
+            .clone()
+            .into_iter()
+            .map(|string| find_candidates(&string))
+            .enumerate();
         let mut candidates_stream = smol::iter(blocking!(candidates_stream));
 
         while let Some((i, candidates)) = candidates_stream.next().await {
-
             let lib = &missing_libs[i];
             match candidates.len() {
                 0 => panic!("Found no provide for {}", lib),
@@ -183,7 +185,7 @@ fn main() {
         write_bash_script(
             &path_to_binary.with_file_name("run-with-nix"),
             &format!("$({} '{}')/bin/fhs", NIX_BUILD_FHS, fhs_expression),
-            )
-            .unwrap();
+        )
+        .unwrap();
     });
 }
