@@ -31,12 +31,16 @@ checksum = "cf1de2fe8c75bc145a2f577add951f8134889b4795d47466a54a5c846d691693"
 
 [[package]]
 name = "blocking"
-version = "0.3.2"
+version = "0.4.2"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "e754da8c3499ba6a71989dfb4090a167666816f415f1fe9c7e2a99aef24a2802"
+checksum = "8c4970dd15cc5754d7b515cfe809a0aa04bcd6122e16aca21403bb3a753b128e"
 dependencies = [
- "futures",
+ "futures-channel",
+ "futures-io",
+ "futures-util",
  "once_cell",
+ "parking",
+ "waker-fn",
 ]
 
 [[package]]
@@ -391,6 +395,12 @@ source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "06de47b848347d8c4c94219ad8ecd35eb90231704b067e67e6ae2e36ee023510"
 
 [[package]]
+name = "parking"
+version = "1.0.0"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "01b231bb075ab9f13baf704894d03941e51729b141a17be9e4a801b60369df1b"
+
+[[package]]
 name = "pin-project"
 version = "0.4.16"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -579,9 +589,9 @@ checksum = "c111b5bd5695e56cffe5129854aa230b39c93a305372fdbb2668ca2394eea9f8"
 
 [[package]]
 name = "smol"
-version = "0.1.6"
+version = "0.1.7"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "9e673af73dafb9280501f579a2cfb307b77c1c5ca45a9489678600d80ab08c90"
+checksum = "b7e021d2d8c0f8bb337bb9a1366a7ddfe7f3e5be3bf954a1338392219f08138b"
 dependencies = [
  "async-task",
  "blocking",
@@ -723,6 +733,12 @@ name = "void"
 version = "1.0.2"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "6a02e4885ed3bc0f2de90ea6dd45ebcbb66dacffe03547fadbb0eeae2770887d"
+
+[[package]]
+name = "waker-fn"
+version = "1.0.0"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "9571542c2ce85ce642e6b58b3364da2fb53526360dfb7c211add4f5c23105ff7"
 
 [[package]]
 name = "wasi"
