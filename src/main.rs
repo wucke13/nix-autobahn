@@ -8,7 +8,6 @@ use clap::Clap;
 use console::Style;
 use dialoguer::{theme::ColorfulTheme, Select};
 use futures::prelude::*;
-use smol::blocking;
 
 const NIX_BUILD_FHS: &'static str = "nix-build --no-out-link -E";
 const LDD_NOT_FOUND: &'static str = " => not found";
@@ -103,11 +102,11 @@ struct Opts {
     binary: PathBuf,
 
     /// additional shared object files to search for and propagate
-    #[clap(short = "l", long = "lib")]
+    #[clap(short = 'l', long = "lib")]
     libs: Vec<String>,
 
     /// additional packages to propagate
-    #[clap(short = "p", long = "pkgs")]
+    #[clap(short = 'p', long = "pkgs")]
     pkgs: Vec<String>,
 }
 
@@ -123,14 +122,14 @@ fn main() {
     opts.libs.dedup();
     opts.libs.sort();
 
-    smol::run(async {
+    smol::block_on(async {
         let candidates_stream = opts
             .libs
             .clone()
             .into_iter()
             .map(|string| find_candidates(&string))
             .enumerate();
-        let mut candidates_stream = smol::iter(blocking!(candidates_stream));
+        let mut candidates_stream = stream::iter(candidates_stream);
 
         while let Some((i, candidates)) = candidates_stream.next().await {
             let lib = &opts.libs[i];
