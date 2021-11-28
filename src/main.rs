@@ -1,10 +1,12 @@
-use std::fs;
-use std::io::{self, prelude::*};
-use std::os::unix::fs::PermissionsExt;
-use std::path::{Path, PathBuf};
-use std::process::Command;
+use std::{
+    fs,
+    io::{self, prelude::*},
+    os::unix::fs::PermissionsExt,
+    path::{Path, PathBuf},
+    process::Command,
+};
 
-use clap::Clap;
+use clap::Parser;
 use console::Style;
 use dialoguer::{theme::ColorfulTheme, Select};
 use futures::prelude::*;
@@ -94,7 +96,7 @@ fn find_candidates(file_name: &String) -> Vec<(String, String)> {
         .collect()
 }
 
-#[derive(Clap)]
+#[derive(Parser)]
 #[clap(version, author, about)]
 struct Opts {
     /// dynamically linked binary to be examined
