@@ -96,7 +96,7 @@ fn find_candidates(file_name: &String) -> Vec<(String, String)> {
         .collect()
 }
 
-#[derive(Parser)]
+#[derive(clap::Parser)]
 #[clap(version, author, about)]
 struct Opts {
     /// dynamically linked binary to be examined
