@@ -13,9 +13,8 @@ license = "MIT"
 # See more keys and their definitions at https://doc.rust-lang.org/cargo/reference/manifest.html
 
 [dependencies]
+anyhow = "1"
 clap = { version = "3", features = [ "derive" ] }
 console = "0"
 dialoguer = "0"
-futures = "0"
-smol = "1"
 #nix-index = { git = "https://github.com/bennofs/nix-index" }
