@@ -17,4 +17,6 @@ anyhow = "1"
 clap = { version = "3", features = [ "derive" ] }
 console = "0"
 dialoguer = "0"
+indicatif = {version = "0", features = ["rayon"] }
+rayon = "1"
 #nix-index = { git = "https://github.com/bennofs/nix-index" }

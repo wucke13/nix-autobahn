@@ -5,10 +5,14 @@ use std::{
     os::unix::fs::PermissionsExt,
     path::{Path, PathBuf},
     process::Command,
-    rc::Rc,
+    sync::Arc,
 };
 
 use clap::Parser;
+use indicatif::{
+    ParallelProgressIterator, ProgressBar, ProgressFinish, ProgressIterator, ProgressStyle,
+};
+use rayon::iter::{IntoParallelRefIterator, ParallelIterator};
 
 const NIX_BUILD_FHS: &str = "nix-build --no-out-link -E";
 const LDD_NOT_FOUND: &str = " => not found";
@@ -131,6 +135,49 @@ struct Opts {
 
     #[clap(long)]
     print_found_packages: bool,
+
+    #[clap(arg_enum, short, long, default_value_t)]
+    output_format: Output,
+
+    #[clap(arg_enum, short, long, default_value_t)]
+    strategy: Strategy,
+}
+
+#[derive(Clone, clap::ArgEnum)]
+enum Output {
+    NixShell,
+}
+
+impl Default for Output {
+    fn default() -> Self {
+        Self::NixShell
+    }
+}
+
+#[derive(Clone, clap::ArgEnum)]
+enum Strategy {
+    TakeAll,
+}
+
+impl Default for Strategy {
+    fn default() -> Self {
+        Self::TakeAll
+    }
+}
+
+fn new_spinner(msg: &'static str) -> ProgressBar {
+    let style = ProgressStyle::default_spinner().on_finish(ProgressFinish::AndLeave);
+    ProgressBar::new_spinner()
+        .with_style(style)
+        .with_message(msg)
+}
+
+fn new_progress(count: u64, msg: &'static str) -> ProgressBar {
+    let style = ProgressStyle::default_bar()
+        .template("[{elapsed_precise}] {bar:40.cyan/blue} {pos:>7}/{len:7} {msg}")
+        .progress_chars("##-")
+        .on_finish(ProgressFinish::AndLeave);
+    ProgressBar::new(count).with_style(style).with_message(msg)
 }
 
 fn main() -> anyhow::Result<()> {
@@ -144,30 +191,50 @@ fn main() -> anyhow::Result<()> {
     let mut packages_included: Vec<_> = opts
         .pkgs
         .into_iter()
-        .map(|name| Rc::new(Package { name }))
+        .map(|name| Arc::new(Package { name }))
         .collect();
+
+    let pb = new_spinner("scanning for missing libs");
+
     let mut missing_libs: Vec<_> = opts
         .libs
         .into_iter()
+        .progress_with(pb)
         .map(|name| MissingLib { name })
         .chain(missing_libs(&opts.binary)?.into_iter())
         .collect();
 
+    let pb = new_spinner("refining missing libs");
+
     packages_included.sort();
     missing_libs.sort();
     missing_libs.dedup();
+    pb.finish();
 
-    let mut candidates_map: HashMap<Rc<Package>, Vec<&MissingLib>> = HashMap::new();
+    let pb = new_progress(missing_libs.len() as u64, "loooking up candidate packages");
 
-    for (missing_lib, candidates) in missing_libs.iter().map(|l| (l, l.find_candidates())) {
-        for (package, _file_path) in candidates {
-            packages_included.push(Rc::new(package));
-            let e = candidates_map
-                .entry(packages_included.last().unwrap().clone())
-                .or_insert(Vec::new());
-            (*e).push(missing_lib);
-        }
-    }
+    let missing_map: HashMap<Arc<MissingLib>, Vec<Arc<Package>>> = missing_libs
+        .par_iter()
+        .progress_with(pb)
+        .map(|l| {
+            (
+                Arc::new(l.clone()),
+                l.find_candidates()
+                    .into_iter()
+                    .map(|c| Arc::new(c.0))
+                    .collect(),
+            )
+        })
+        .collect();
+
+    let candidates_map: HashMap<Arc<Package>, Vec<Arc<MissingLib>>> =
+        missing_map
+            .iter()
+            .fold(HashMap::new(), |mut accum, (l, ps)| {
+                ps.iter()
+                    .for_each(|p| accum.entry(p.clone()).or_insert(Vec::new()).push(l.clone()));
+                accum
+            });
 
     // TODO please find a good selection
     // this is the full set
