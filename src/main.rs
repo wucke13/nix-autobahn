@@ -128,6 +128,9 @@ struct Opts {
     /// additional packages to propagate
     #[clap(short, long = "pkg")]
     pkgs: Vec<String>,
+
+    #[clap(long)]
+    print_found_packages: bool,
 }
 
 fn main() -> anyhow::Result<()> {
@@ -167,6 +170,19 @@ fn main() -> anyhow::Result<()> {
     }
 
     // TODO please find a good selection
+    // this is the full set
+    packages_included.extend(candidates_map.keys().cloned());
+
+    if opts.print_found_packages {
+        println!(
+            "[ {} ]",
+            packages_included
+                .iter()
+                .map(|p| p.name.clone())
+                .collect::<Vec<_>>()
+                .join(" ")
+        )
+    }
 
     // build FHS expression
     let fhs_expression = fhs_shell(

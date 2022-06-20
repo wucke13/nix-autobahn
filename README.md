@@ -1,4 +1,6 @@
-# Under construction, expected to work by the end of the Week
+# Under construction
+
++ still rather primitive, needs more work
 
 # Overview
 
