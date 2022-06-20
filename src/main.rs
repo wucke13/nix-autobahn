@@ -13,6 +13,7 @@ use indicatif::{
     ParallelProgressIterator, ProgressBar, ProgressFinish, ProgressIterator, ProgressStyle,
 };
 use rayon::iter::{IntoParallelRefIterator, ParallelIterator};
+use regex::bytes::Regex;
 
 const NIX_BUILD_FHS: &str = "nix-build --no-out-link -E";
 const LDD_NOT_FOUND: &str = " => not found";
@@ -81,33 +82,22 @@ pub struct MissingLib {
 impl MissingLib {
     /// uses nix-locate to find candidate packages providing a given file,
     /// identified by a file name
-    fn find_candidates(&self) -> Vec<(Package, String)> {
-        let output = Command::new("nix-locate")
-            .arg("--top-level")
-            .arg("--type=r")
-            .arg("--type=s")
-            .arg("--type=x")
-            .arg("--whole-name")
-            .arg(&self.name)
-            .output()
-            .expect("failed to execute nix-locate");
-
-        if !output.status.success() {
-            panic!("nix-locate returned error code {}", output.status);
-        }
-
-        String::from_utf8(output.stdout)
-            .expect("unable to parse utf8")
-            .lines()
-            .map(|l| {
-                let begin_cut = l.find(' ').unwrap();
-                let end_cut = l.match_indices('/').nth(3).unwrap().0;
-                (
-                    Package {
-                        name: l[0..begin_cut].to_string(),
-                    },
-                    l[end_cut..].to_string(),
-                )
+    fn find_candidates(&self) -> anyhow::Result<Vec<Package>> {
+        let db_path = dirs::home_dir()
+            .ok_or_else(|| anyhow::format_err!("unable to find home dir"))?
+            .join(".cache/nix-index/");
+        let db = nix_index::database::Reader::open(db_path)
+            .map_err(|_| anyhow::format_err!("oh no, a nix-index error"))?;
+        let regex = Regex::new(&self.name)?;
+        let query = db.query(&regex);
+        query
+            .run()
+            .unwrap()
+            .map(|x| {
+                x.map(|p| Package {
+                    name: format!("{}.{}", p.0.origin().attr, p.0.origin().output),
+                })
+                .map_err(|_| anyhow::format_err!("oh no, a nix-index error"))
             })
             .collect()
     }
@@ -220,8 +210,9 @@ fn main() -> anyhow::Result<()> {
             (
                 Arc::new(l.clone()),
                 l.find_candidates()
+                    .unwrap()
                     .into_iter()
-                    .map(|c| Arc::new(c.0))
+                    .map(Arc::new)
                     .collect(),
             )
         })

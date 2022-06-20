@@ -25,6 +25,8 @@
             pname = "nix-autobahn";
             root = ./.;
             doCheck = true;
+            nativeBuildInputs = [ pkgs.pkg-config ];
+            buildInputs = [ pkgs.openssl ];
           };
           devShells.default = pkgs.mkShell {
             inputsFrom = [ packages.default ];
