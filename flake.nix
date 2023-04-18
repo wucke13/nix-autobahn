@@ -1,9 +1,9 @@
 {
   inputs = {
-    utils.url = "git+https://github.com/numtide/flake-utils";
-    fenix.url = "git+https://github.com/nix-community/fenix?ref=main";
+    utils.url = "github:numtide/flake-utils";
+    fenix.url = "github:nix-community/fenix";
     fenix.inputs.nixpkgs.follows = "nixpkgs";
-    naersk.url = "git+https://github.com/nix-community/naersk";
+    naersk.url = "github:nix-community/naersk";
     naersk.inputs.nixpkgs.follows = "nixpkgs";
   };
 
